@@ -1,0 +1,6 @@
+/data/MNIST_train.csv
+/knn/test.ipynb
+/knn/.ipynb_checkpoints/
+*.iml
+*.xml
+*.pyc
