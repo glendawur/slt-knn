@@ -3,7 +3,7 @@ from scipy.spatial.distance import cdist
 
 def accuracy(Y_true: np.array, Y_predicted: np.array):
     assert Y_true.shape[0] == Y_predicted.shape[0]
-    return np.sum(Y_predicted == Y_true)/Y_true.shape[0]
+    return np.mean(Y_predicted == Y_true)
 
 def majority(x, k):
     """
@@ -38,11 +38,14 @@ class KNNClassifier(object):
     def __init__(self, k: int = 5, p: float = 2.):
         """
         """
+
         self.k = k
         self.p = p
         self.Y = None
         self.X = None
         self.predicted_labels = None
+        self.loocv_labels = None
+        self.loocv_accuracy = None
 
     def fit(self, X: np.ndarray, Y: np.array):
         """
@@ -77,6 +80,28 @@ class KNNClassifier(object):
                                                                          2 * supermatrix.shape[1]),
                                                                         order='F'), k=self.k)
         return self.predicted_labels
+
+    
+    def calculate_loocv(self):
+        # get distances between input X and train X
+        distances = cdist(XA=self.X, XB=self.X, metric='minkowski', p=self.p)
+        # get auxiliary label matrix
+        labels = np.tile(self.Y, (self.X.shape[0], 1))
+        supermatrix = np.zeros((self.X.shape[0], self.k, 2))
+
+        # sort distances
+        sorted_points_indices = np.apply_along_axis(np.argsort, 1, distances)[:, 1:self.k+1]
+        supermatrix[:, :, 0] = distances[np.arange(sorted_points_indices.shape[0])[:, None], sorted_points_indices]
+        # sort labels according to indices
+        supermatrix[:, :, 1] = labels[np.arange(sorted_points_indices.shape[0])[:, None], sorted_points_indices]
+
+        # predict labels using rule with tie-breaking extension
+        self.loocv_labels = np.apply_along_axis(majority, 1,
+                                                    supermatrix.reshape((supermatrix.shape[0],
+                                                                         2 * supermatrix.shape[1]),
+                                                                        order='F'), k=self.k)
+        self.loocv_accuracy = accuracy(self.Y, self.loocv_labels)
+        return self.loocv_accuracy
 
     def accuracy(self, Y: np.array):
         assert self.predicted_labels.shape[0] == Y.shape[0]
