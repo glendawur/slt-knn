@@ -1,10 +1,7 @@
 import itertools
 import numba
-import os
-import multiprocessing
 import threading
 import queue
-from itertools import repeat
 import numpy as np
 from scipy.spatial.distance import cdist, _cdist_callable
 from scipy.spatial.distance import minkowski
@@ -92,7 +89,11 @@ class KNNClassifierFast(object):
     
     def calculate_loocv(self):
         # get distances between input X and train X
-        distances = self.minkowski_distance(self.X.to_numpy(), self.p)
+        try:
+            distances = self.minkowski_distance(self.X.to_numpy(), self.p)
+        except:
+            distances = self.minkowski_distance(self.X, self.p)
+
         # get auxiliary label matrix
         labels = np.tile(self.Y, (self.X.shape[0], 1))
         supermatrix = np.zeros((self.X.shape[0], self.k, 2))
@@ -198,3 +199,35 @@ class KNNClassifierFast(object):
 
         return result
     
+    @staticmethod
+    #@numba.njit(parallel=True, fastmath=True)
+    def compute_truncated_svd(X, nr_of_elements):
+        """
+        """
+        X = np.asarray(X, dtype=np.float64)
+        X = np.ascontiguousarray(X)
+        U, s, VT = np.linalg.svd(X)
+        U = np.ascontiguousarray(U)
+        VT = np.ascontiguousarray(VT)
+
+        Sigma = np.zeros((X.shape[0], X.shape[1]))
+        Sigma = np.ascontiguousarray(Sigma)
+
+        #Sigma[:X.shape[0], :X.shape[0]] = np.diag(s)
+        Sigma[:np.diag(s).shape[0], :np.diag(s).shape[0]] = np.diag(s)
+        
+        Sigma = np.ascontiguousarray(Sigma)
+        
+        Sigma = Sigma[:, :nr_of_elements]
+        VT = VT[:nr_of_elements, :]
+
+        #B = U.dot(Sigma.dot(VT))
+        T = np.dot(np.ascontiguousarray(U), np.ascontiguousarray(Sigma))
+
+        #T = U.dot(Sigma)
+        T = np.dot(np.ascontiguousarray(X), np.ascontiguousarray(VT.T))
+
+        #T = X.dot(VT.T)
+
+        #print(T)
+        return T
