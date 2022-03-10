@@ -69,6 +69,12 @@ class KNNClassifierFast(object):
         """
         # get distances between input X and train X
         distances = cdist(XA=X, XB=self.X, metric='minkowski', p=self.p)
+
+        try:
+            distances = self.minkowski_distance(X.to_numpy(), self.X.to_numpy(), self.p)
+        except:
+            distances = self.minkowski_distance(X, self.X, self.p)
+
         # get auxiliary label matrix
         labels = np.tile(self.Y, (X.shape[0], 1))
         supermatrix = np.zeros((X.shape[0], self.k, 2))
@@ -90,9 +96,9 @@ class KNNClassifierFast(object):
     def calculate_loocv(self):
         # get distances between input X and train X
         try:
-            distances = self.minkowski_distance(self.X.to_numpy(), self.p)
+            distances = self.minkowski_distance_X(self.X.to_numpy(), self.p)
         except:
-            distances = self.minkowski_distance(self.X, self.p)
+            distances = self.minkowski_distance_X(self.X, self.p)
 
         # get auxiliary label matrix
         labels = np.tile(self.Y, (self.X.shape[0], 1))
@@ -174,7 +180,7 @@ class KNNClassifierFast(object):
 
     @staticmethod
     @numba.njit(parallel=True, fastmath=True)  #('(float64[:, :, :], uint64)', parallel=True, fastmath=True)
-    def minkowski_distance(X, p):
+    def minkowski_distance_X(X, p):
         """
         Function that computes the minkowski distance between X and X.
         The numba decorators makes sure that this code is compiled to machine code.
@@ -196,6 +202,26 @@ class KNNClassifierFast(object):
                 result[i, j] = norm
                 result[j, i] = norm
 
+
+        return result
+
+    @staticmethod
+    @numba.njit(parallel=True, fastmath=True)
+    def minkowski_distance(XA, XB, p):
+        XA = np.asarray(XA)
+        XB = np.asarray(XB)
+        
+        mA = XA.shape[0]
+        mB = XB.shape[0]
+
+        result = np.empty(shape=(mA, mB), dtype=np.float32)
+
+        for i in numba.prange(mA):
+            for j in numba.prange(mB):
+                u_v = XA[i].astype(np.float32) - XB[j].astype(np.float32)
+
+                norm = np.linalg.norm(u_v, ord=p)
+                result[i, j] = norm
 
         return result
     
