@@ -3,7 +3,7 @@ import numba
 import threading
 import queue
 import numpy as np
-from scipy.spatial.distance import cdist, _cdist_callable
+from scipy.spatial.distance import cdist
 from scipy.spatial.distance import minkowski
 
 def accuracy(Y_true: np.array, Y_predicted: np.array):
